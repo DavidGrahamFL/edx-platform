@@ -42,11 +42,13 @@ import hashlib
 import base64
 import urllib
 import textwrap
+import json
 from lxml import etree
 from webob import Response
 import mock
 from xml.sax.saxutils import escape
 
+from django.conf import settings
 from xmodule.editing_module import MetadataOnlyEditingDescriptor
 from xmodule.raw_module import EmptyDataRawDescriptor
 from xmodule.x_module import XModule, module_attr
@@ -179,15 +181,16 @@ class LTIModule(LTIFields, XModule):
         Otherwise error message from LTI provider is generated.
     """
 
-    js = {'js': [resource_string(__name__, 'js/src/lti/lti.js')]}
+    js = {
+        'js': [
+            resource_string(__name__, 'js/src/lti/01_lti.js'),
+            resource_string(__name__, 'js/src/lti/02_main.js')
+        ]
+    }
     css = {'scss': [resource_string(__name__, 'css/lti/lti.scss')]}
     js_module_name = "LTI"
 
-    def get_html(self):
-        """
-        Renders parameters to template.
-        """
-
+    def get_input_fields(self):
         # LTI provides a list of default parameters that might be passed as
         # part of the POST data. These parameters should not be prefixed.
         # Likewise, The creator of an LTI link can add custom key/value parameters
@@ -245,13 +248,19 @@ class LTIModule(LTIFields, XModule):
 
             custom_parameters[unicode(param_name)] = unicode(param_value)
 
-        input_fields = self.oauth_params(
+        return self.oauth_params(
             custom_parameters,
             client_key,
             client_secret,
         )
+
+    def get_html(self):
+        """
+        Renders parameters to template.
+        """
+
         context = {
-            'input_fields': input_fields,
+            'input_fields': self.get_input_fields(),
 
             # These parameters do not participate in OAuth signing.
             'launch_url': self.launch_url.strip(),
@@ -259,9 +268,24 @@ class LTIModule(LTIFields, XModule):
             'element_class': self.category,
             'open_in_a_new_page': self.open_in_a_new_page,
             'display_name': self.display_name,
+            'ajax_url': self.system.ajax_url,
         }
 
         return self.system.render_template('lti.html', context)
+
+    def handle_ajax(self, dispatch, __):
+        """Ajax handler.
+
+        Args:
+            dispatch: string request slug
+
+        Returns:
+            json string
+        """
+        if dispatch == 'regenerate_signature':
+            return json.dumps({ 'input_fields': self.get_input_fields() })
+        else:  # return error message
+            return json.dumps({ 'error': '[handle_ajax]: Unknown Command!' })
 
     def get_user_id(self):
         user_id = self.runtime.anonymous_student_id
@@ -272,7 +296,7 @@ class LTIModule(LTIFields, XModule):
         """
         Return URL for storing grades.
         """
-        uri = 'http://{host}{path}'.format(
+        uri = 'https://{host}{path}'.format(
                 host=self.system.hostname,
                 path=self.runtime.handler_url(self, 'grade_handler', thirdparty=True).rstrip('/?')
             )

@@ -35,7 +35,7 @@ class TestLTI(BaseTestXmodule):
 
         sourcedId = u':'.join(urllib.quote(i) for i in (lti_id, module_id, user_id))
 
-        lis_outcome_service_url = 'http://{host}{path}'.format(
+        lis_outcome_service_url = 'https://{host}{path}'.format(
                 host=self.item_descriptor.xmodule_runtime.hostname,
                 path=self.item_descriptor.xmodule_runtime.handler_url(self.item_module, 'grade_handler', thirdparty=True).rstrip('/?')
             )
@@ -93,6 +93,7 @@ class TestLTI(BaseTestXmodule):
             'element_id': self.item_module.location.html_id(),
             'launch_url': 'http://www.example.com',  # default value
             'open_in_a_new_page': True,
+            'ajax_url': self.item_descriptor.xmodule_runtime.ajax_url,
         }
 
         self.assertEqual(
