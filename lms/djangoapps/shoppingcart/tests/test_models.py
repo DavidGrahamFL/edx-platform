@@ -330,6 +330,7 @@ class RefundReportTest(ModuleStoreTestCase):
         self.user = UserFactory.create()
         self.user.first_name = "John"
         self.user.last_name = "Doe"
+        self.user.save()
         self.course_id = "MITx/999/Robot_Super_Course"
         self.cost = 40
         self.course = CourseFactory.create(org='MITx', number='999', display_name=u'Robot Super Course')
@@ -368,8 +369,8 @@ class RefundReportTest(ModuleStoreTestCase):
 
     CORRECT_CSV = dedent("""
         Order Number, Customer Name, Date of Original Transaction,Date of Refund,Amount of Refund,Service Fees (if any)
-        1,John Doe,date,date,40,lol
-        """.format(time_str=str(test_time)))
+        1,John Doe,{fulfilled_time},{date_of_refund},40,0
+        """)
 
     def test_purchased_csv(self):
         """
