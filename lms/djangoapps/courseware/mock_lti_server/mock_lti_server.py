@@ -64,42 +64,25 @@ class MockLTIRequestHandler(BaseHTTPRequestHandler):
         # Respond to grade request
         if 'grade' in self.path and self._send_graded_result().status_code == 200:
             status_message = 'LTI consumer (edX) responded with XML content:<br>' + self.server.grade_data['TC answer']
-            self.server.grade_data['callback_url'] = None
+            self.server.grade_data = None
         # Respond to request with correct lti endpoint:
         elif self._is_correct_lti_request():
             self.post_dict = self._post_dict()
-            correct_keys = [
-                'user_id',
-                'role',
-                'oauth_nonce',
-                'oauth_timestamp',
-                'oauth_consumer_key',
-                'lti_version',
-                'oauth_signature_method',
-                'oauth_version',
-                'oauth_signature',
-                'lti_message_type',
-                'oauth_callback',
-                'lis_outcome_service_url',
-                'lis_result_sourcedid',
-                'launch_presentation_return_url',
-                # 'lis_person_sourcedid',  optional, not used now.
-                'resource_link_id',
-            ]
-            if sorted(correct_keys) != sorted(self.post_dict.keys()):
-                status_message = "Incorrect LTI header"
+            if self.post_dict['oauth_consumer_key'] != self.server.oauth_settings['client_key']:
+                status_message = "Invalid launch - no configuration found for provided key."
             else:
                 params = {k: v for k, v in self.post_dict.items() if k != 'oauth_signature'}
                 if self.server.check_oauth_signature(params, self.post_dict['oauth_signature']):
                     status_message = "This is LTI tool. Success."
+                    # set data for grades
+                    # what need to be stored as server data
+                    if 'lis_outcome_service_url' in self.post_dict:
+                        self.server.grade_data = {
+                            'callback_url': self.post_dict['lis_outcome_service_url'],
+                            'sourcedId': self.post_dict['lis_result_sourcedid']
+                        }
                 else:
                     status_message = "Wrong LTI signature"
-            # set data for grades
-            # what need to be stored as server data
-            self.server.grade_data = {
-                'callback_url': self.post_dict["lis_outcome_service_url"],
-                'sourcedId': self.post_dict['lis_result_sourcedid']
-            }
         else:
             status_message = "Invalid request URL"
 
@@ -203,8 +186,7 @@ class MockLTIRequestHandler(BaseHTTPRequestHandler):
         '''
         Send message back to the client
         '''
-
-        if self.server.grade_data['callback_url']:
+        if getattr(self.server, 'grade_data', False):
             response_str = """<html><head><title>TEST TITLE</title></head>
                 <body>
                 <div><h2>Graded IFrame loaded</h2> \

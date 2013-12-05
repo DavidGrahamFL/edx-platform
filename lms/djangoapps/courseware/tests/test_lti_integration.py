@@ -35,7 +35,7 @@ class TestLTI(BaseTestXmodule):
 
         sourcedId = u':'.join(urllib.quote(i) for i in (lti_id, module_id, user_id))
 
-        lis_outcome_service_url = 'http://{host}{path}'.format(
+        self.lis_outcome_service_url = 'http://{host}{path}'.format(
                 host=self.item_descriptor.xmodule_runtime.hostname,
                 path=self.item_descriptor.xmodule_runtime.handler_url(self.item_module, 'grade_handler', thirdparty=True).rstrip('/?')
             )
@@ -48,7 +48,6 @@ class TestLTI(BaseTestXmodule):
             u'role': u'student',
 
             u'resource_link_id': module_id,
-            u'lis_outcome_service_url': lis_outcome_service_url,
             u'lis_result_sourcedid': sourcedId,
 
             u'oauth_nonce': mocked_nonce,
@@ -94,7 +93,6 @@ class TestLTI(BaseTestXmodule):
             'launch_url': 'http://www.example.com',  # default value
             'open_in_a_new_page': True,
         }
-
         self.assertEqual(
             generated_context,
             self.runtime.render_template('lti.html', expected_context),
