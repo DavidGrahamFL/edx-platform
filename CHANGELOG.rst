@@ -5,6 +5,8 @@ These are notable changes in edx-platform.  This is a rolling list of changes,
 in roughly chronological order, most recent first.  Add your entries at or near
 the top.  Include a label indicating the component affected.
 
+Blades: Add template that displays the most up-to-date features of drag-and-drop.
+
 Blades: Video Transcripts: Fix clear and download buttons. BLD-438.
 
 Common: Switch over from MITX_FEATURES to just FEATURES. To override items in
