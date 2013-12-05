@@ -114,7 +114,6 @@ class VerifiedView(View):
             chosen_price = verify_mode.min_price.format("{:g}")
 
         course = course_from_id(course_id)
-        from nose.tools import set_trace; set_trace()
         context = {
             "course_id": course_id,
             "course_name": course.display_name_with_default,

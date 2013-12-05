@@ -17,7 +17,7 @@ from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
 from courseware.tests.tests import TEST_DATA_MONGO_MODULESTORE
 from shoppingcart.models import (Order, OrderItem, CertificateItem, InvalidCartItem, PaidCourseRegistration,
-                                 OrderItemSubclassPK, PaidCourseRegistrationAnnotation)
+                                 OrderItemSubclassPK, PaidCourseRegistrationAnnotation, Report)
 from student.tests.factories import UserFactory
 from student.models import CourseEnrollment
 from course_modes.models import CourseMode
@@ -355,11 +355,12 @@ class PurchaseReportTest(ModuleStoreTestCase):
     def test_purchased_items_btw_dates(self):
         # TODO test multiple report types
         report_type = "itemized_purchase_report"
-        purchases = OrderItem.purchased_items_btw_dates(report_type, self.now - self.FIVE_MINS, self.now + self.FIVE_MINS)
+        report = Report.initialize_report(report_type)
+        purchases = report.get_query(self.now - self.FIVE_MINS, self.now + self.FIVE_MINS)
         self.assertEqual(len(purchases), 2)
         self.assertIn(self.reg.orderitem_ptr, purchases)
         self.assertIn(self.cert_item.orderitem_ptr, purchases)
-        no_purchases = OrderItem.purchased_items_btw_dates(report_type, self.now + self.FIVE_MINS,
+        no_purchases = report.get_query(self.now + self.FIVE_MINS,
                                                            self.now + self.FIVE_MINS + self.FIVE_MINS)
         self.assertFalse(no_purchases)
 
@@ -380,13 +381,14 @@ class PurchaseReportTest(ModuleStoreTestCase):
         # make the times match this way
         # TODO test multiple report types
         report_type = "itemized_purchase_report"
-        for item in OrderItem.purchased_items_btw_dates(report_type, self.now - self.FIVE_MINS, self.now + self.FIVE_MINS):
+        report = Report.initialize_report(report_type)
+        for item in report.get_query(self.now - self.FIVE_MINS, self.now + self.FIVE_MINS):
             item.fulfilled_time = self.test_time
             item.save()
 
         # add annotation to the
         csv_file = StringIO.StringIO()
-        OrderItem.csv_purchase_report_btw_dates(report_type, csv_file, self.now - self.FIVE_MINS, self.now + self.FIVE_MINS)
+        Report.make_report(report_type, csv_file, self.now - self.FIVE_MINS, self.now + self.FIVE_MINS)
         csv = csv_file.getvalue()
         csv_file.close()
         # Using excel mode csv, which automatically ends lines with \r\n, so need to convert to \n
