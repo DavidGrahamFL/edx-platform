@@ -621,13 +621,14 @@ class RefundReport(Report):
         ]
 
     def csv_report_row(self, item):
+        from nose.tools import set_trace; set_trace()
         return [
             item.order_id,
-            item.user.name,
+            item.user.get_full_name,
             item.fulfilled_time,
             item.line_cost,
             item.refund_requested_time, # actually think I need to use refund_fulfilled here
-            # TODO do I need a service fees field?
+            'lol', # TODO do I need a service fees field?
         ]
 
 class ItemizedPurchaseReport(Report):

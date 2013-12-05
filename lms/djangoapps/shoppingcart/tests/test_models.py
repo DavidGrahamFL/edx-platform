@@ -322,9 +322,81 @@ class PaidCourseRegistrationTest(ModuleStoreTestCase):
             reg1.purchased_callback()
         self.assertFalse(CourseEnrollment.is_enrolled(self.user, self.course_id))
 
+@override_settings(MODULESTORE=TEST_DATA_MONGO_MODULESTORE)
+class RefundReportTest(ModuleStoreTestCase):
+    FIVE_MINS = datetime.timedelta(minutes=5)
+
+    def setUp(self):
+        self.user = UserFactory.create()
+        self.user.first_name = "John"
+        self.user.last_name = "Doe"
+        self.course_id = "MITx/999/Robot_Super_Course"
+        self.cost = 40
+        self.course = CourseFactory.create(org='MITx', number='999', display_name=u'Robot Super Course')
+        course_mode = CourseMode(course_id=self.course_id,
+                                 mode_slug="honor",
+                                 mode_display_name="honor cert",
+                                 min_price=self.cost)
+        course_mode.save()
+
+        course_mode2 = CourseMode(course_id=self.course_id,
+                                  mode_slug="verified",
+                                  mode_display_name="verified cert",
+                                  min_price=self.cost)
+        course_mode2.save()
+
+        self.cart = Order.get_cart_for_user(self.user)
+        CertificateItem.add_to_order(self.cart, self.course_id, self.cost, 'verified')
+        self.cart.purchase()
+
+        # should auto-refund the relevant cert
+        CourseEnrollment.unenroll(self.user, self.course_id)
+
+        self.cert_item = CertificateItem.objects.get(user=self.user, course_id=self.course_id)
+
+        self.now = datetime.datetime.now(pytz.UTC)
+
+    def test_get_query(self):
+        report_type = "refund_report"
+        report = Report.initialize_report(report_type)
+        refunded_certs = report.get_query(self.now - self.FIVE_MINS, self.now + self.FIVE_MINS)
+        self.assertEqual(len(refunded_certs), 1)
+        self.assertIn(self.cert_item, refunded_certs)
+        # TODO no time restrictions yet
+
+    test_time = datetime.datetime.now(pytz.UTC)
+
+    CORRECT_CSV = dedent("""
+        Order Number, Customer Name, Date of Original Transaction,Date of Refund,Amount of Refund,Service Fees (if any)
+        1,John Doe,date,date,40,lol
+        """.format(time_str=str(test_time)))
+
+    def test_purchased_csv(self):
+        """
+        Tests that a generated purchase report CSV is as we expect
+        """
+        # coerce the purchase times to self.test_time so that the test can match.
+        # It's pretty hard to patch datetime.datetime b/c it's a python built-in, which is immutable, so we
+        # make the times match this way
+        # TODO test multiple report types
+        report_type = "refund_report"
+        report = Report.initialize_report(report_type)
+        for item in report.get_query(self.now - self.FIVE_MINS, self.now + self.FIVE_MINS):
+            item.fulfilled_time = self.test_time
+            item.save()
+
+        # add annotation to the
+        csv_file = StringIO.StringIO()
+        Report.make_report(report_type, csv_file, self.now - self.FIVE_MINS, self.now + self.FIVE_MINS)
+        csv = csv_file.getvalue()
+        csv_file.close()
+        # Using excel mode csv, which automatically ends lines with \r\n, so need to convert to \n
+        self.assertEqual(csv.replace('\r\n', '\n').strip(), self.CORRECT_CSV.strip())
+
+
 
 @override_settings(MODULESTORE=TEST_DATA_MONGO_MODULESTORE)
-class PurchaseReportTest(ModuleStoreTestCase):
+class ItemizedPurchaseReportTest(ModuleStoreTestCase):
 
     FIVE_MINS = datetime.timedelta(minutes=5)
     TEST_ANNOTATION = u'Ba\xfc\u5305'
