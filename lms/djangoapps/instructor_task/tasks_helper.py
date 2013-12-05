@@ -170,10 +170,13 @@ def run_main_task(entry_id, task_fcn, action_name):
           'duration_ms': how long the task has (or had) been running.
 
     """
-
     # get the InstructorTask to be updated.  If this fails, then let the exception return to Celery.
     # There's no point in catching it here.
     entry = InstructorTask.objects.get(pk=entry_id)
+
+#    # Mark the task as in progress and save it
+#    entry.update_state(state=PROGRESS)
+#    entry.save_now()
 
     # get inputs to use in this task from the entry:
     task_id = entry.task_id
@@ -506,9 +509,11 @@ def push_grades_to_s3(_xmodule_instance_args, _entry_id, course_id, _task_input,
             'step': curr_step,
         }
         _get_current_task().update_state(state=PROGRESS, meta=progress)
+        _get_current_task().save_now()
 
         return progress
 
+    update_task_progress()
     # Loop over all our students and build our CSV lists in memory
     header = None
     rows = []
