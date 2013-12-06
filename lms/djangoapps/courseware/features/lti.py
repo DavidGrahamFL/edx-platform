@@ -61,7 +61,7 @@ def incorrect_lti_is_rendered(_step):
     assert not world.is_css_present('.link_lti_new_window')
     assert not world.is_css_present('.error_message')
     #inside iframe test content is presented
-    check_lti_iframe_content("Invalid launch - no configuration found for provided key.")
+    check_lti_iframe_content("Wrong LTI signature")
 
 
 @step('the course has correct LTI credentials$')

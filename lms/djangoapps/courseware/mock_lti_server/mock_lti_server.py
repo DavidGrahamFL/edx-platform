@@ -36,30 +36,18 @@ class MockLTIRequestHandler(BaseHTTPRequestHandler):
         '''
         Handle a GET request from the client and sends response back.
         '''
-
         self.send_response(200, 'OK')
         self.send_header('Content-type', 'html')
         self.end_headers()
-
         response_str = """<html><head><title>TEST TITLE</title></head>
             <body>I have stored grades.</body></html>"""
-
         self.wfile.write(response_str)
-
         self._send_graded_result()
-
 
 
     def do_POST(self):
         '''
         Handle a POST request from the client and sends response back.
-        '''
-
-        '''
-        logger.debug("LTI provider received POST request {} to path {}".format(
-            str(self.post_dict),
-            self.path)
-        )  # Log the request
         '''
         # Respond to grade request
         if 'grade' in self.path and self._send_graded_result().status_code == 200:
@@ -68,24 +56,19 @@ class MockLTIRequestHandler(BaseHTTPRequestHandler):
         # Respond to request with correct lti endpoint:
         elif self._is_correct_lti_request():
             self.post_dict = self._post_dict()
-            if self.post_dict['oauth_consumer_key'] != self.server.oauth_settings['client_key']:
-                status_message = "Invalid launch - no configuration found for provided key."
+            params = {k: v for k, v in self.post_dict.items() if k != 'oauth_signature'}
+            if self.server.check_oauth_signature(params, self.post_dict['oauth_signature']):
+                status_message = "This is LTI tool. Success."
+                # set data for grades what need to be stored as server data
+                if 'lis_outcome_service_url' in self.post_dict:
+                    self.server.grade_data = {
+                        'callback_url': self.post_dict['lis_outcome_service_url'],
+                        'sourcedId': self.post_dict['lis_result_sourcedid']
+                    }
             else:
-                params = {k: v for k, v in self.post_dict.items() if k != 'oauth_signature'}
-                if self.server.check_oauth_signature(params, self.post_dict['oauth_signature']):
-                    status_message = "This is LTI tool. Success."
-                    # set data for grades
-                    # what need to be stored as server data
-                    if 'lis_outcome_service_url' in self.post_dict:
-                        self.server.grade_data = {
-                            'callback_url': self.post_dict['lis_outcome_service_url'],
-                            'sourcedId': self.post_dict['lis_result_sourcedid']
-                        }
-                else:
-                    status_message = "Wrong LTI signature"
+                status_message = "Wrong LTI signature"
         else:
             status_message = "Invalid request URL"
-
         self._send_head()
         self._send_response(status_message)
 
@@ -94,12 +77,6 @@ class MockLTIRequestHandler(BaseHTTPRequestHandler):
         Send the response code and MIME headers
         '''
         self.send_response(200)
-        '''
-        if self._is_correct_lti_request():
-            self.send_response(200)
-        else:
-            self.send_response(500)
-        '''
         self.send_header('Content-type', 'text/html')
         self.end_headers()
 
@@ -131,13 +108,11 @@ class MockLTIRequestHandler(BaseHTTPRequestHandler):
         return post_dict
 
     def _send_graded_result(self):
-
         values = {
             'textString': 0.5,
             'sourcedId': self.server.grade_data['sourcedId'],
             'imsx_messageIdentifier': uuid4().hex,
         }
-
         payload = textwrap.dedent("""
             <?xml version = "1.0" encoding = "UTF-8"?>
                 <imsx_POXEnvelopeRequest  xmlns="http://www.imsglobal.org/services/ltiv1p1/xsd/imsoms_v1p0">
@@ -207,7 +182,6 @@ class MockLTIRequestHandler(BaseHTTPRequestHandler):
 
         # Log the response
         logger.debug("LTI: sent response {}".format(response_str))
-
         self.wfile.write(response_str)
 
     def _is_correct_lti_request(self):

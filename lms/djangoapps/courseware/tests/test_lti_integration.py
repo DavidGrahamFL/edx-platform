@@ -35,10 +35,6 @@ class TestLTI(BaseTestXmodule):
 
         sourcedId = u':'.join(urllib.quote(i) for i in (lti_id, module_id, user_id))
 
-        self.lis_outcome_service_url = 'http://{host}{path}'.format(
-                host=self.item_descriptor.xmodule_runtime.hostname,
-                path=self.item_descriptor.xmodule_runtime.handler_url(self.item_module, 'grade_handler', thirdparty=True).rstrip('/?')
-            )
         self.correct_headers = {
             u'user_id': user_id,
             u'oauth_callback': u'about:blank',
